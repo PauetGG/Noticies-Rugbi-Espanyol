@@ -1,26 +1,61 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-paper: #e8e1cf;
+  --color-paper-2: #ded5bf;
+  --color-ink: #171310;
+  --color-ink-2: #554c41;
+  --color-rule: #a99d84;
+  --color-red: #8c2b22;
+
+  --font-display: var(--font-display), Georgia, serif;
+  --font-body: var(--font-body), Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.article-body > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 4.1em;
+  line-height: 0.78;
+  padding-right: 0.07em;
+  margin-top: 0.04em;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  /* gra de paper: dues trames molt febles i creuades */
+  background-image:
+    repeating-linear-gradient(0deg, rgba(23, 19, 16, 0.014) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(23, 19, 16, 0.010) 0 1px, transparent 1px 4px);
+}
+
+/* Cos de text de diari: justificat i partit */
+.newsprint {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  line-height: 1.72;
+}
+
+/* Filet vertical entre columnes */
+.colrule > * + * {
+  border-left: 1px solid var(--color-rule);
+  padding-left: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .colrule > * + * {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--color-rule);
+    padding-top: 1.5rem;
+  }
+}
+
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
 }

@@ -206,7 +206,8 @@ export const articles = pgTable("articles", {
 	reviewedAt: timestamp("reviewed_at", { withTimezone: true, mode: 'string' }),
 	viewCount: integer("view_count").default(0),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow()
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	coverImageCredit: text("cover_image_credit"),
 }, (table) => [
 	index("articles_category_idx").using("btree", table.categoryId.asc().nullsLast().op("int4_ops"), table.publishedAt.desc().nullsFirst().op("int4_ops")),
 	index("articles_featured_idx").using("btree", table.isFeatured.asc().nullsLast().op("timestamptz_ops"), table.publishedAt.desc().nullsFirst().op("bool_ops")).where(sql`is_featured`),
