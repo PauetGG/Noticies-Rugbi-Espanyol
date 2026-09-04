@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getNavCategories } from '@/lib/queries';
+import { site } from '@/lib/site';
 
 export async function Masthead() {
   const cats = await getNavCategories();
@@ -15,11 +16,19 @@ export async function Masthead() {
     <header className="mx-auto max-w-6xl px-4 pt-6">
       <div className="border-t-4 border-ink" />
 
-      <Link href="/" className="block pt-5 pb-3 text-center">
-        <span className="font-[family-name:var(--font-display)] block text-6xl font-black leading-none tracking-tight sm:text-8xl">
-          Rugby Español
+      <Link href="/" className="block pt-5 pb-6 text-center sm:pb-8">
+        <span className="font-[family-name:var(--font-display)] block text-5xl font-black leading-none tracking-tight sm:text-8xl">
+          {site.name}
         </span>
       </Link>
+
+      <div className="flex items-center justify-center gap-3 pb-4 sm:gap-4">
+        <span className="h-px w-8 bg-ink sm:w-16" />
+        <p className="font-[family-name:var(--font-body)] text-[0.7rem] font-semibold uppercase leading-none tracking-[0.18em] text-ink sm:text-xs">
+          {site.tagline}
+        </p>
+        <span className="h-px w-8 bg-ink sm:w-16" />
+      </div>
 
       <div className="flex items-baseline justify-between border-y border-ink py-1 text-[0.7rem] text-ink-2">
         <span className="first-letter:uppercase">{today}</span>
