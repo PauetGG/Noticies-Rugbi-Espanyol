@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db';
 import { rawArticles } from '@/db/schema';
@@ -12,7 +13,7 @@ const itemSchema = z.object({
   url: z.string().url(),
   title: z.string().min(1).max(500),
   summary: z.string().max(4000).optional(),
-  content: z.string().optional(),
+  content: z.string().max(50000).optional(),
   author: z.string().max(200).optional(),
   imageUrl: z.string().url().optional(),
   publishedAt: z.string().datetime({ offset: true }).optional(),
@@ -81,34 +82,59 @@ export async function POST(req: Request) {
 
   const items = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
 
-  const rows = items.map((item) => {
+  const seen = new Set<string>();
+  const rows = [];
+
+  for (const item of items) {
     const url = normalizeUrl(item.url);
-    return {
+    const urlHash = hashUrl(url);
+
+    if (seen.has(urlHash)) continue;
+    seen.add(urlHash);
+
+    const { content, ...payload } = item;
+
+    rows.push({
       sourceId: item.sourceId,
       url,
-      urlHash: hashUrl(url),
+      urlHash,
       title: item.title.trim(),
       summary: item.summary ?? null,
-      content: item.content ?? null,
+      content: content?.trim() || null,
       author: item.author ?? null,
       imageUrl: item.imageUrl ?? null,
       publishedAt: item.publishedAt ?? null,
-      rawPayload: item,
-    };
-  });
+      rawPayload: payload,
+    });
+  }
+
+  if (rows.length === 0) {
+    return NextResponse.json(
+      { received: items.length, inserted: 0, backfilled: 0, skipped: items.length, ids: [] },
+      { status: 201 },
+    );
+  }
 
   try {
-    const inserted = await db
+    const result = await db
       .insert(rawArticles)
       .values(rows)
-      .onConflictDoNothing({ target: rawArticles.urlHash })
-      .returning({ id: rawArticles.id });
+      .onConflictDoUpdate({
+        target: rawArticles.urlHash,
+        set: { content: sql`excluded.content` },
+        where: sql`${rawArticles.content} is null and excluded.content is not null`,
+      })
+      .returning({ id: rawArticles.id, isNew: sql<boolean>`xmax = 0` });
+
+    const inserted = result.filter((r) => r.isNew);
+    const backfilled = result.filter((r) => !r.isNew);
 
     return NextResponse.json(
       {
-        received: rows.length,
+        received: items.length,
         inserted: inserted.length,
-        skipped: rows.length - inserted.length,
+        backfilled: backfilled.length,
+        skipped: items.length - result.length,
         ids: inserted.map((r) => r.id.toString()),
       },
       { status: 201 },

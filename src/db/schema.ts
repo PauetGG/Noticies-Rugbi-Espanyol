@@ -11,6 +11,7 @@ export const teams = pgTable("teams", {
 	aliases: text().array(),
 	city: text(),
 	region: text(),
+	isquadId: integer('isquad_id'),
 	country: text().default('ES'),
 	foundedYear: integer("founded_year"),
 	stadiumName: text("stadium_name"),
@@ -264,6 +265,7 @@ export const competitionSeasons = pgTable("competition_seasons", {
 	competitionId: integer("competition_id").notNull(),
 	seasonId: integer("season_id").notNull(),
 	slug: text().notNull(),
+	bonusTryMode: text("bonus_try_mode").default('count').notNull(),
 	format: text().default('league'),
 	pointsWin: integer("points_win").default(4),
 	pointsDraw: integer("points_draw").default(2),
@@ -353,8 +355,13 @@ export const matches = pgTable("matches", {
 	competitionSeasonId: integer("competition_season_id").notNull(),
 	roundId: integer("round_id"),
 	slug: text().notNull(),
+	isquadId: bigint('isquad_id', { mode: 'number' }),
+	matchCode: text('match_code'),
 	homeTeamId: integer("home_team_id").notNull(),
 	awayTeamId: integer("away_team_id").notNull(),
+	walkoverWinnerId: integer("walkover_winner_id"),
+	venueName: text("venue_name"),
+	raw: jsonb(),
 	venueId: integer("venue_id"),
 	kickoffAt: timestamp("kickoff_at", { withTimezone: true, mode: 'string' }),
 	kickoffTbd: boolean("kickoff_tbd").default(false),
@@ -1297,3 +1304,45 @@ export const systemHealth = pgView("system_health", {	// You can use { mode: "bi
 	workflowsFallidos24H: bigint("workflows_fallidos_24h", { mode: "number" }),
 	costeLlm24H: numeric("coste_llm_24h"),
 }).as(sql`SELECT ( SELECT count(*) AS count FROM raw_articles WHERE raw_articles.status = 'pending'::text) AS pendientes_ingesta, ( SELECT count(*) AS count FROM raw_articles WHERE raw_articles.status = 'error'::text) AS errores_ingesta, ( SELECT count(*) AS count FROM editorial_queue WHERE editorial_queue.state = 'waiting'::text) AS pendientes_revision, ( SELECT count(*) AS count FROM articles WHERE articles.status = 'published'::text AND articles.published_at > (now() - '24:00:00'::interval)) AS publicados_24h, ( SELECT count(*) AS count FROM comments WHERE comments.status = 'pending'::text) AS comentarios_pendientes, ( SELECT count(*) AS count FROM sources WHERE sources.active AND (sources.last_fetched_at IS NULL OR sources.last_fetched_at < (now() - (((sources.fetch_interval_minutes * 2) || ' minutes'::text)::interval)))) AS fuentes_atascadas, ( SELECT count(*) AS count FROM workflow_runs WHERE (workflow_runs.status = ANY (ARRAY['failed'::text, 'timeout'::text])) AND workflow_runs.started_at > (now() - '24:00:00'::interval)) AS workflows_fallidos_24h, ( SELECT COALESCE(round(sum(llm_calls.cost_usd), 4), 0::numeric) AS "coalesce" FROM llm_calls WHERE llm_calls.created_at > (now() - '24:00:00'::interval)) AS coste_llm_24h`);
+
+export const isquadTargets = pgTable('isquad_targets', {
+  id: serial('id').primaryKey(),
+  competitionSeasonId: integer('competition_season_id')
+    .notNull()
+    .references(() => competitionSeasons.id, { onDelete: 'cascade' }),
+  isquadId: integer('isquad_id').notNull(),
+  phaseLabel: text('phase_label'),
+  idAmbito: integer('id_ambito').notNull().default(1),
+  idTerritorial: integer('id_territorial').notNull().default(9999),
+  idSuperficie: integer('id_superficie').notNull().default(1),
+  jornadas: integer('jornadas'),
+  active: boolean('active').notNull().default(true),
+  priority: integer('priority').notNull().default(100),
+  lastFetchedAt: timestamp('last_fetched_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const matchSheets = pgTable('match_sheets', {
+  id: bigserial('id', { mode: 'bigint' }).primaryKey(),
+  matchId: bigint('match_id', { mode: 'number' }).references(() => matches.id, {
+    onDelete: 'set null',
+  }),
+  isquadMatchId: bigint('isquad_match_id', { mode: 'number' }),
+  matchCode: text('match_code'),
+  sourceUrl: text('source_url').notNull(),
+  storagePath: text('storage_path'),
+  fileHash: text('file_hash').notNull(),
+  pageCount: integer('page_count'),
+  rawText: text('raw_text'),
+  parsedPayload: jsonb('parsed_payload'),
+  parseStatus: text('parse_status').notNull().default('pending'),
+  parseError: text('parse_error'),
+  scoreCheckOk: boolean('score_check_ok'),
+  fetchedAt: timestamp('fetched_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  parsedAt: timestamp('parsed_at', { withTimezone: true }),
+});
